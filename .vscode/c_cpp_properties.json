@@ -18,6 +18,8 @@
             "includePath": [
                 "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\cores\\arduino",
                 "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\variants\\standard",
+                "C:\\Users\\Robodyne_Develop3\\Documents\\Arduino\\libraries\\LiquidCrystal_I2C-master",
+                "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\libraries\\Wire\\src",
                 "C:\\Users\\Robodyne_Develop3\\Documents\\Arduino\\libraries\\MFRC522\\src",
                 "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\libraries\\SPI\\src",
                 "C:\\Program Files (x86)\\Arduino\\libraries\\Servo\\src",
