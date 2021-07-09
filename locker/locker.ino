@@ -7,6 +7,7 @@
 #include <Servo.h>
 #include <String.h>
 #include <Wire.h>
+#include <math.h>
 
 /*********************************
  * 센서 - 아두이노 연결될 핀번호를 정의합니다.
@@ -33,6 +34,8 @@
 /*********************************
  * 코드에 사용될 변수를 선언합니다.
  * ******************************/
+const int buttonDelay = 150;
+
 bool isLocked;
 bool isTagged;
 int countSec;
@@ -139,7 +142,7 @@ void setStateLocked() {
         /**
          * 비밀번호로 잠금해제
          */
-        poten = (int)map(analogRead(PIN_POT), 0, 1023, 0, 10);
+        poten = map(analogRead(PIN_POT), 0, 1023, 0, 10);
         lcd.setCursor(0, 0);
         lcd.print("input : ");
         lcd.setCursor(10, 0);
@@ -153,7 +156,7 @@ void setStateLocked() {
         }
         // true = 1, false = 0. 스위치는 누르면 low(= 0)를 전송
         if (!digitalRead(BUTTON_2)) {
-            delay(150);
+            delay(buttonDelay);
             if (input.length() < 4) {
                 input.concat(String(poten));
                 Serial.println(input);
@@ -168,11 +171,11 @@ void setStateLocked() {
             }
         }
         if (!digitalRead(BUTTON_1) && input.length() != 0) {
-            delay(300);
+            delay(buttonDelay);
             input.remove(input.length() - 1);
             clearLine(1);
             lcd.print("password : ");
-            
+
             for (int i = 0; i < input.length(); i++) {
                 lcd.print("*");
             }
@@ -202,74 +205,80 @@ bool checkCard() {}
 // toggle degree of servo motor
 void toggleLockState(bool state) {
     isLocked = state;
+    lcd.clear();
+    lcd.print("door is moving!");
+    lcd.setCursor(0, 1);
+    lcd.print("be careful!");
+
     if (state) {
         Serial.print("isLocked : ");
         Serial.println(isLocked);
-        servo.write(180);
-        // delay(1000);
+        // servo.write(180);
+        myServoWrite(180);
+        lcd.clear();
         return;
     }
 
     Serial.print("isLocked : ");
     Serial.println(isLocked);
-    servo.write(0);
-    // delay(1000);
+    // servo.write(0);
+    myServoWrite(0);
+    lcd.clear();
 }
 
 // 리팩토링 필요
 bool isVerified(byte uid[]) {
-    // if (sizeof(uid) != sizeof(registeredUid))
-    //   return false;
-
     bool flag = true;
+    Serial.print("registered");
+    Serial.print("\t");
+    Serial.println("input");
+
     for (byte i = 0; i < 4; i++) {
         Serial.print(registeredUid[i]);
-        Serial.print("\t");
-        Serial.print(uid[i]);
-        Serial.println("");
+        Serial.print("\t\t\t");
+        Serial.println(uid[i]);
 
-        if (registeredUid[i] != uid[i]) flag = false;
-        // return false;
+        if (registeredUid[i] != uid[i]) {
+            printWrong();
+            return false;
+        }
     }
-    if(!flag){
-        printWrong();
-    }
-    Serial.println(flag);
-    return flag;
-    // return true;
+    return true;
 }
 
+/**
+ * lcd functions
+ */
 void clearLine(int line) {
-    lcd.print("                ");
-    if (line > 1) return;
+    if (line > 1 || line < 0) return;
     lcd.setCursor(0, line);
-    lcd.print("                ");
+    lcd.print("                ");  // 공백 16개
     lcd.setCursor(0, line);
 }
 
-void printWrong(){
+void printWrong() {
     lcd.setCursor(10, 1);
     lcd.print("wrong");
-    delay(1500);
+    delay(750);
     clearLine(1);
+}
+
+// 문 닫힘/열림 속도 조절
+void myServoWrite(int angle) {
+    int pos = servo.read();
+    if (angle - pos > 0) {
+        for (int i = pos; i <= angle; i++) {
+            servo.write(i);
+            delay(10);
+        }
+        return;
+    }
+    for (int i = pos; i >= angle; i--) {
+        servo.write(i);
+        delay(10);
+    }
 }
 
 /***********************************************
  * only dev functions
  ***********************************************/
-String readText() {
-    noInterrupts();  // critical section
-    while (Serial.available()) {
-        delay(2);  // delay to allow byte to arrive in input buffer
-        char c = Serial.read();
-        readString += c;
-    }
-    String returnStr = readString;
-    while (Serial.available()) {
-        readString = Serial.readString();
-    }
-
-    readString = "";
-    interrupts();  // release
-    return returnStr;
-}
