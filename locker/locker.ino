@@ -5,20 +5,21 @@
 #include <MFRC522.h>
 #include <SPI.h>
 #include <Servo.h>
+#include <SoftwareSerial.h>
 #include <String.h>
+#include <Vector.h>
 #include <Wire.h>
-#include <math.h>
 
 /*********************************
  * 센서가 아두이노에 연결될 핀번호를 정의합니다.
  * ******************************/
 #define PIN_SERVO 2     // sig = dig
-#define PIN_LED_RED 3   // sig = dig
-#define PIN_LED_BLUE 4  // sig = dig
 #define PIN_POT 3       // sig = dig, POT : potentiometer
 #define PIN_LED_GREEN 6 // sig = dig
 #define RFID_RST 9      // sig = dig, RST  RESET
 #define RFID_SS 10      // sig = dig, SS : SDA
+#define BT_TXD 3
+#define BT_RXD 8
 /**
     키패드	핀
     2	    첫번째 핀
@@ -56,6 +57,7 @@ String oneTimePw = "2222"; // '무인 택배함' 기능에 사용될 일회용 �
 Servo servo;
 MFRC522 mfrc(RFID_SS, RFID_RST); // Instance of the class
 LiquidCrystal_I2C lcd(0x27, 16, 2);
+SoftwareSerial bluetooth(BT_TXD, BT_RXD);
 
 /*********************************
  * for dev
@@ -68,8 +70,8 @@ void setup() {
   /**
    * 시리얼 통신을 위한 준비
    */
-
   Serial.begin(9600);
+  bluetooth.begin(9600);
   pinMode(BUTTON_1, INPUT_PULLUP);
   pinMode(BUTTON_2, INPUT_PULLUP);
   pinMode(BUTTON_3, INPUT_PULLUP);
@@ -147,7 +149,7 @@ void setState(bool flag) {
  * 잠겨있을 때에는 두 가지 행동을 취할 수 있습니다.
  * 1. 비밀번호로 잠금 해제
  * 2. RFID카드로 잠금해제
- * 3. 블루투스로 연결된 핸드폰에 비밀번호를 입력하여 잠금해제(예정)
+ * 3. 블루투스로 연결된 핸드폰에 비밀번호를 입력하여 잠금해제
  */
 void setStateLocked() {
   String input = ""; // 입력될 비밀번호가 담길 변수
@@ -203,6 +205,21 @@ void setStateLocked() {
       }
       Serial.println(input);
     }
+
+    // 3. 블루투스에 비밀번호를 입력하여 잠금해제
+    if (bluetooth.available()) {
+      input = bluetooth.readStringUntil('\n');
+      Serial.println(input);
+
+      if (isPwCorrect(input)) {
+        isLocked = false;
+        return;
+      } else {
+        printWrong();
+        input = "";
+        clearLine(1);
+      }
+    }
   }
 }
 
@@ -218,10 +235,23 @@ void setStateLocked() {
  */
 void setStateOpened() {
   lcd.print("opened!");
+  delay(750);
+
   while (!isLocked) {
+    lcd.clear();
+
     if (!digitalRead(BUTTON_3)) {
       isLocked = true;
       return;
+    }
+    if (bluetooth.available()) {
+      String input = bluetooth.readStringUntil('\n');
+      Serial.println(input);
+
+      if (input == "close") {
+        isLocked = true;
+        return;
+      }
     }
   }
 }
@@ -321,11 +351,13 @@ void printWrong() {
 /**
  * 문/닫힘, 열림 속도를 조정하는 함수
  *
- * params
- * angle : 서보모터의 각 조절
+ * @params
+ * int angle : 서보모터의 각 조절
  */
 void myServoWrite(int angle) {
   int pos = servo.read();
+  if (pos == angle)
+    return;
   if (angle - pos > 0) {
     for (int i = pos; i <= angle; i++) {
       servo.write(i);
