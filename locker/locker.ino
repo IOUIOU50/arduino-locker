@@ -35,11 +35,10 @@
 /*********************************
  * 코드에 사용될 변수들을 선언하는곳 입니다.
  * ******************************/
-const int buttonDelay = 150; //
+const int buttonDelay = 250; // 버튼에 딜레이를 주어 오입력 방지
 
 bool isLocked;
 bool isTagged;
-int countSec;
 
 /**
  * 이전 실습을 통해 진행하였던 내용을 아래에 추가합니다.
@@ -49,7 +48,7 @@ int countSec;
  */
 byte registeredUid[4] = {0x83, 0xD2, 0xE9, 0x18}; // rfid 카드 일련번호
 String registeredPw = "1111"; // 사용자가 지정한 비밀번호
-String oneTimePw = "2222"; // '무인 택배함' 기능에 사용될 일회용 비밀번호
+String oneTimePw = ""; // '무인 택배함' 기능에 사용될 일회용 비밀번호
 
 /*
   센서/모듈 사용을 위한 클래스 변수를 선언합니다.
@@ -222,16 +221,26 @@ void setStateLocked() {
 
     // 3. 블루투스에 비밀번호를 입력하여 잠금해제
     if (bluetooth.available()) {
-      input = bluetooth.readStringUntil('\n');
-      Serial.println(input);
+      String btRead = bluetooth.readStringUntil('\n');
+      Serial.println(btRead);
 
-      if (isPwCorrect(input)) {
-        isLocked = false;
-        return;
-      } else {
-        printWrong();
-        input = "";
-        clearLine(1);
+      if (btRead.length() == 4) { // 잠금 해제를 위한 블루투스로 비밀번호 입력
+        if (isPwCorrect(btRead)) {
+          isLocked = false;
+          return;
+        } else {
+          printWrong();
+          btRead = "";
+          clearLine(1);
+        }
+      } else { // 블루투스로 otp 설정
+        int delim = btRead.indexOf(" ");
+        String command = btRead.substring(0, delim);
+        String otp = btRead.substring(delim + 1);
+
+        if (command == "otp") {
+          oneTimePw = otp;
+        }
       }
     }
   }
@@ -251,16 +260,37 @@ void setStateOpened() {
   lcd.print("opened!");
   delay(750);
   lcd.clear();
-  int cursorPosition = 0;
-  menuBlink(cursorPosition);
-  while (!isLocked) {
-    int posCurrentCursor = map(analogRead(PIN_POT), 0, 1023, 0, 3);
+  lcd.setCursor(1, 0);
+  lcd.print("STUDY");
+  lcd.setCursor(9, 0);
+  lcd.print("SET OTP");
+  lcd.setCursor(1, 1);
+  lcd.print("COLOR");
 
-    if (cursorPosition != posCurrentCursor) {
-      menuBlink(cursorPosition, posCurrentCursor);
-      cursorPosition = posCurrentCursor;
+  int posCursor, posCurrentCursor = map(analogRead(PIN_POT), 0, 1023, 0, 3);
+  menuBlink(posCurrentCursor);
+
+  while (!isLocked) {
+    posCurrentCursor = map(analogRead(PIN_POT), 0, 1023, 0, 3);
+
+    if (posCursor != posCurrentCursor) {
+      menuBlink(posCurrentCursor);
+      posCursor = posCurrentCursor;
       // lcd.clear();
-      // menuBlink(cursorPosition = posCurrentCursor);
+      // menuBlink(posCursor = posCurrentCursor);
+    }
+
+    if (!digitalRead(BUTTON_2)) {
+      delay(buttonDelay);
+      selectMenu(posCursor);
+      lcd.clear();
+      lcd.setCursor(1, 0);
+      lcd.print("STUDY");
+      lcd.setCursor(9, 0);
+      lcd.print("SET OTP");
+      lcd.setCursor(1, 1);
+      lcd.print("COLOR");
+      menuBlink(posCursor = map(analogRead(PIN_POT), 0, 1023, 0, 3));
     }
 
     if (!digitalRead(BUTTON_3)) {
@@ -276,55 +306,20 @@ void setStateOpened() {
         return;
       }
     }
-  }
-}
-void menuBlink(int posCursor) {
-  switch (posCursor) {
-  case 0:
-    lcd.setCursor(0, 0);
-    lcd.print("*STUDY");
-    lcd.setCursor(9, 0);
-    lcd.print("ONETIME");
-    lcd.setCursor(1, 1);
-    lcd.print("COLOR");
-    break;
-
-  case 1:
-    lcd.setCursor(1, 0);
-    lcd.print("STUDY");
-    lcd.setCursor(8, 0);
-    lcd.print("*ONETIME");
-    lcd.setCursor(1, 1);
-    lcd.print("COLOR");
-    break;
-
-  default:
-    lcd.setCursor(1, 0);
-    lcd.print("STUDY");
-    lcd.setCursor(9, 0);
-    lcd.print("ONETIME");
-    lcd.setCursor(0, 1);
-    lcd.print("*COLOR");
-    break;
+    setBTOtp();
   }
 }
 
-void menuBlink(int posCursor, int posCurrentCursor) {
-  switch (posCursor) {
-  case 0:
-    lcd.setCursor(0, 0);
-    lcd.print(" ");
-    break;
-  case 1:
-    lcd.setCursor(8, 0);
-    lcd.print(" ");
-    break;
-  default:
-    lcd.setCursor(0, 1);
-    lcd.print(" ");
-    break;
-  }
-
+/**
+ * 어떤 메뉴에 커서를 두고있는지 '*'로 표시
+ */
+void menuBlink(int posCurrentCursor) {
+  lcd.setCursor(0, 0);
+  lcd.print(" ");
+  lcd.setCursor(8, 0);
+  lcd.print(" ");
+  lcd.setCursor(0, 1);
+  lcd.print(" ");
   switch (posCurrentCursor) {
   case 0:
     lcd.setCursor(0, 0);
@@ -342,6 +337,111 @@ void menuBlink(int posCursor, int posCurrentCursor) {
 }
 
 /**
+ * 메뉴 선택 시 해당 메뉴의 동작을 수행하는 함수를 호출
+ */
+void selectMenu(int menu) {
+  switch (menu) {
+  case 0:
+    setStateStudy();
+    break;
+  case 1:
+    setOTP();
+    break;
+  default:
+    // setColor();
+    break;
+  }
+}
+
+/**
+ * 1. 메인메뉴 - 스터디 헬퍼 모드
+ *
+ * 가변저항기를 이용해 시간을 5분단위로 지정. 최대 60분
+ * 시간 만료 이전까지는 아두이노에 어떤 조작을 가해도 움직이지 않음.
+ * 시간이 지나고 나면 메인메뉴로 복귀
+ *
+ * 고래해야 할 사항
+ *
+ * 여닫이 문 : 닫힌 상태에서 스터디 모드를 활성화 해야함(현재 구현상태)
+ * 미닫이 문 : 사용자가 상자를 닫은 것을 인식한 후 스터디모드 활성화
+ */
+void setStateStudy() {
+  int isCanceled = false;
+  int potBefore, potAfter = map(analogRead(PIN_POT), 0, 1023, 0, 13);
+  int minutes = potBefore * 5;
+
+  lcd.clear();
+  lcd.print("SET TIME");
+  lcd.setCursor(0, 1);
+  if (minutes < 10) {
+    lcd.print("0");
+    lcd.print(minutes);
+  } else {
+    lcd.print(minutes);
+  }
+  lcd.print("minutes");
+
+  while (!isCanceled) {
+    if (!digitalRead(BUTTON_1)) {
+      delay(buttonDelay);
+      isCanceled = true;
+      break;
+    }
+
+    potAfter = map(analogRead(PIN_POT), 0, 1023, 0, 13);
+    if (potBefore != potAfter) {
+      minutes = potAfter * 5;
+      lcd.setCursor(0, 1);
+      if (minutes / 10 == 0) {
+        lcd.print("0");
+      }
+      lcd.print(minutes);
+      lcd.print("minutes");
+      potBefore = potAfter;
+    }
+
+    if (!digitalRead(BUTTON_2)) {
+
+      // for dev ******************************************
+      int m = minutes;
+      int s = 0;
+      // int m = 0;
+      // int s = 10;
+      // **************************************************
+      toggleLockState(true);
+      lcd.clear();
+      lcd.print("REMAINING TIME");
+
+      while (true) {
+        lcd.setCursor(0, 1);
+        if (m < 10) {
+          lcd.print("0");
+        }
+        lcd.print(m);
+        lcd.print(":");
+        if (s < 10) {
+          lcd.print("0");
+        }
+        lcd.print(s);
+
+        if (s <= 0) {
+          if (m <= 0) {
+            isCanceled = true;
+            break;
+          } else {
+            m--;
+            s = 60;
+          }
+        }
+        s--;
+        delay(1000);
+      }
+    }
+  }
+  toggleLockState(false);
+}
+
+/**
  * pw를 검사하는 함수
  * pw에는
  * (1)저장된 비밀번호와
@@ -356,6 +456,70 @@ bool isPwCorrect(String input) {
     return true;
   }
   return false;
+}
+
+/**
+ * 블루투스로 일회용 비밀번호 등록을 위한 함수
+ */
+void setOTP() {
+  String input = "";
+  int poten;
+
+  lcd.clear();
+  lcd.print("input : ");
+  lcd.setCursor(0, 1); // 1번 칸, 2번 줄
+  lcd.print("password : ");
+
+  while (true) {
+    poten = map(analogRead(PIN_POT), 0, 1023, 0, 10);
+    lcd.setCursor(8, 0);
+    lcd.print(poten);
+    lcd.setCursor(9, 0); // 오입력 방지
+    lcd.print(" ");      // 오입력 방지
+    lcd.setCursor(11, 1);
+    for (int i = 0; i < input.length(); i++) {
+      lcd.print(input.charAt(i));
+    }
+    if (!digitalRead(BUTTON_2)) {
+      delay(buttonDelay);
+      if (input.length() < 4) {
+        input.concat(String(poten));
+        Serial.println(input);
+        lcd.setCursor(11, 1);
+        for (int i = 0; i < input.length(); i++) {
+          lcd.print(input.charAt(i));
+        }
+      } else {
+        oneTimePw = input;
+        lcd.clear();
+        lcd.print("OTP ENTERED!");
+        lcd.setCursor(0, 1);
+        lcd.print("password is ");
+        lcd.print(input);
+        delay(2000);
+        return;
+      }
+    }
+    if (!digitalRead(BUTTON_1)) {
+      delay(buttonDelay);
+      return;
+    }
+  }
+}
+
+void setBTOtp() {
+  String input = "";
+  if (bluetooth.available()) {
+    input = bluetooth.readStringUntil('\n');
+    Serial.println(input);
+
+    int delim = input.indexOf(" ");
+    String command = input.substring(0, delim);
+    String otp = input.substring(delim + 1);
+    if (command == "otp") {
+      oneTimePw = otp;
+    }
+  }
 }
 
 /**
@@ -379,7 +543,6 @@ void toggleLockState(bool state) {
 
   Serial.print("isLocked : ");
   Serial.println(isLocked);
-  // servo.write(0);
   myServoWrite(0);
   lcd.clear();
 }
@@ -411,7 +574,6 @@ bool isVerified(byte uid[]) {
  *
  * @params
  * int line : 몇 번째 줄을 삭제시킬 것인지
- *
  * 줄 삭제 후, lcd커서를 해당 줄 맨앞으로 지정
  */
 void clearLine(int line) {
