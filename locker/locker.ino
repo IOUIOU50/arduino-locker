@@ -146,7 +146,7 @@ void setState(bool flag) {
 
 /**
  * 잠겨있을 때 아두이노가 수행할 동작을 정의한 함수입니다.
- * 잠겨있을 때에는 두 가지 행동을 취할 수 있습니다.
+ * 잠겨있을 때에는 세 가지 행동을 취할 수 있습니다.
  * 1. 비밀번호로 잠금 해제
  * 2. RFID카드로 잠금해제
  * 3. 블루투스로 연결된 핸드폰에 비밀번호를 입력하여 잠금해제
@@ -154,6 +154,15 @@ void setState(bool flag) {
 void setStateLocked() {
   String input = ""; // 입력될 비밀번호가 담길 변수
   int poten;         // 입력될 비밀번호를 측정할 potentiometer값
+  int readPoten;
+  lcd.setCursor(0, 0);
+  lcd.print("input : ");
+  lcd.setCursor(8, 0);
+  lcd.print(poten);
+  lcd.setCursor(9, 0);
+  lcd.print(" or tag");
+  lcd.setCursor(0, 1); // 1번 칸, 2번 줄
+  lcd.print("password : ");
 
   while (isLocked) { // 잠겨있는 동안은 setStateLocked()함수 유지
     // 1. RFID로 잠금 해제
@@ -166,17 +175,17 @@ void setStateLocked() {
     }
 
     // 2. 비밀번호로 잠금 해제
-    poten = map(analogRead(PIN_POT), 0, 1023, 0, 10);
-    lcd.setCursor(0, 0);
-    lcd.print("input : ");
-    lcd.setCursor(10, 0);
-    lcd.print("or tag");
-    lcd.setCursor(8, 0);
-    lcd.print(poten);
-    lcd.setCursor(0, 1); // 1번 칸, 2번 줄
-    lcd.print("password : ");
-    for (int i = 0; i < input.length(); i++) {
-      lcd.print("*");
+    readPoten = map(analogRead(PIN_POT), 0, 1023, 0, 10);
+    if (poten != map(analogRead(PIN_POT), 0, 1023, 0, 10)) {
+      poten = readPoten;
+      lcd.setCursor(8, 0);
+      lcd.print(poten);
+      lcd.setCursor(9, 0);
+      lcd.print(" or tag");
+      lcd.setCursor(11, 1);
+      for (int i = 0; i < input.length(); i++) {
+        lcd.print("*");
+      }
     }
     // true = 1, false = 0. 스위치는 누르면 low(= 0)를 전송(low active)
     if (!digitalRead(BUTTON_2)) {
@@ -184,6 +193,10 @@ void setStateLocked() {
       if (input.length() < 4) {
         input.concat(String(poten));
         Serial.println(input);
+        lcd.setCursor(11, 1);
+        for (int i = 0; i < input.length(); i++) {
+          lcd.print("*");
+        }
       } else {
         if (isPwCorrect(input)) {
           isLocked = false;
@@ -192,6 +205,7 @@ void setStateLocked() {
         printWrong();
         input = "";
         clearLine(1);
+        lcd.print("password : ");
       }
     }
     if (!digitalRead(BUTTON_1) && input.length() != 0) {
@@ -230,15 +244,24 @@ void setStateLocked() {
  * 2.메뉴기능 활성화
  *  - 스터디 기능
  *  - 일회용 비밀번호 설정
- *  -
+ *  - 실내 점등 LED 색상 변경
  * 3.
  */
 void setStateOpened() {
   lcd.print("opened!");
   delay(750);
-
+  lcd.clear();
+  int cursorPosition = 0;
+  menuBlink(cursorPosition);
   while (!isLocked) {
-    lcd.clear();
+    int posCurrentCursor = map(analogRead(PIN_POT), 0, 1023, 0, 3);
+
+    if (cursorPosition != posCurrentCursor) {
+      menuBlink(cursorPosition, posCurrentCursor);
+      cursorPosition = posCurrentCursor;
+      // lcd.clear();
+      // menuBlink(cursorPosition = posCurrentCursor);
+    }
 
     if (!digitalRead(BUTTON_3)) {
       isLocked = true;
@@ -253,6 +276,68 @@ void setStateOpened() {
         return;
       }
     }
+  }
+}
+void menuBlink(int posCursor) {
+  switch (posCursor) {
+  case 0:
+    lcd.setCursor(0, 0);
+    lcd.print("*STUDY");
+    lcd.setCursor(9, 0);
+    lcd.print("ONETIME");
+    lcd.setCursor(1, 1);
+    lcd.print("COLOR");
+    break;
+
+  case 1:
+    lcd.setCursor(1, 0);
+    lcd.print("STUDY");
+    lcd.setCursor(8, 0);
+    lcd.print("*ONETIME");
+    lcd.setCursor(1, 1);
+    lcd.print("COLOR");
+    break;
+
+  default:
+    lcd.setCursor(1, 0);
+    lcd.print("STUDY");
+    lcd.setCursor(9, 0);
+    lcd.print("ONETIME");
+    lcd.setCursor(0, 1);
+    lcd.print("*COLOR");
+    break;
+  }
+}
+
+void menuBlink(int posCursor, int posCurrentCursor) {
+  switch (posCursor) {
+  case 0:
+    lcd.setCursor(0, 0);
+    lcd.print(" ");
+    break;
+  case 1:
+    lcd.setCursor(8, 0);
+    lcd.print(" ");
+    break;
+  default:
+    lcd.setCursor(0, 1);
+    lcd.print(" ");
+    break;
+  }
+
+  switch (posCurrentCursor) {
+  case 0:
+    lcd.setCursor(0, 0);
+    lcd.print("*");
+    break;
+  case 1:
+    lcd.setCursor(8, 0);
+    lcd.print("*");
+    break;
+  default:
+    lcd.setCursor(0, 1);
+    lcd.print("*");
+    break;
   }
 }
 
