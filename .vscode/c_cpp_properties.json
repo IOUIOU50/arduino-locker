@@ -3,7 +3,7 @@
     "configurations": [
         {
             "name": "Arduino",
-            "compilerPath": "C:\\Users\\robodyne\\Desktop\\arduino-1.8.15-windows\\arduino-1.8.15\\hardware\\tools\\avr\\bin\\avr-g++",
+            "compilerPath": "C:\\Program Files (x86)\\Arduino\\hardware\\tools\\avr\\bin\\avr-g++",
             "compilerArgs": [
                 "-std=gnu++11",
                 "-fpermissive",
@@ -15,27 +15,26 @@
             ],
             "intelliSenseMode": "gcc-x64",
             "includePath": [
-                "C:\\Users\\robodyne\\Desktop\\arduino-1.8.15-windows\\arduino-1.8.15\\hardware\\arduino\\avr\\cores\\arduino",
-                "C:\\Users\\robodyne\\Desktop\\arduino-1.8.15-windows\\arduino-1.8.15\\hardware\\arduino\\avr\\variants\\standard",
-                "C:\\Users\\robodyne\\Documents\\Arduino\\libraries\\LiquidCrystal_I2C-master",
-                "C:\\Users\\robodyne\\Desktop\\arduino-1.8.15-windows\\arduino-1.8.15\\hardware\\arduino\\avr\\libraries\\Wire\\src",
-                "C:\\Users\\robodyne\\Desktop\\arduino-1.8.15-windows\\arduino-1.8.15\\libraries\\rfid-master\\src",
-                "C:\\Users\\robodyne\\Desktop\\arduino-1.8.15-windows\\arduino-1.8.15\\hardware\\arduino\\avr\\libraries\\SPI\\src",
-                "C:\\Users\\robodyne\\Desktop\\arduino-1.8.15-windows\\arduino-1.8.15\\libraries\\Servo\\src",
-                "C:\\Users\\robodyne\\Desktop\\arduino-1.8.15-windows\\arduino-1.8.15\\hardware\\arduino\\avr\\libraries\\SoftwareSerial\\src",
-                "C:\\Users\\robodyne\\Desktop\\arduino-1.8.15-windows\\arduino-1.8.15\\libraries\\Vector-1.2.1\\src",
-                "c:\\users\\robodyne\\desktop\\arduino-1.8.15-windows\\arduino-1.8.15\\hardware\\tools\\avr\\lib\\gcc\\avr\\7.3.0\\include",
-                "c:\\users\\robodyne\\desktop\\arduino-1.8.15-windows\\arduino-1.8.15\\hardware\\tools\\avr\\lib\\gcc\\avr\\7.3.0\\include-fixed",
-                "c:\\users\\robodyne\\desktop\\arduino-1.8.15-windows\\arduino-1.8.15\\hardware\\tools\\avr\\avr\\include"
+                "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\cores\\arduino",
+                "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\variants\\standard",
+                "C:\\Users\\Robodyne_Develop3\\Documents\\Arduino\\libraries\\LiquidCrystal_I2C-master",
+                "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\libraries\\Wire\\src",
+                "C:\\Users\\Robodyne_Develop3\\Documents\\Arduino\\libraries\\MFRC522\\src",
+                "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\libraries\\SPI\\src",
+                "C:\\Users\\Robodyne_Develop3\\Documents\\Arduino\\libraries\\Servo\\src",
+                "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\libraries\\SoftwareSerial\\src",
+                "c:\\program files (x86)\\arduino\\hardware\\tools\\avr\\lib\\gcc\\avr\\7.3.0\\include",
+                "c:\\program files (x86)\\arduino\\hardware\\tools\\avr\\lib\\gcc\\avr\\7.3.0\\include-fixed",
+                "c:\\program files (x86)\\arduino\\hardware\\tools\\avr\\avr\\include"
             ],
             "forcedInclude": [
-                "C:\\Users\\robodyne\\Desktop\\arduino-1.8.15-windows\\arduino-1.8.15\\hardware\\arduino\\avr\\cores\\arduino\\Arduino.h"
+                "C:\\Program Files (x86)\\Arduino\\hardware\\arduino\\avr\\cores\\arduino\\Arduino.h"
             ],
             "cStandard": "c11",
             "cppStandard": "c++11",
             "defines": [
                 "F_CPU=16000000L",
-                "ARDUINO=10815",
+                "ARDUINO=10813",
                 "ARDUINO_AVR_UNO",
                 "ARDUINO_ARCH_AVR",
                 "__DBL_MIN_EXP__=(-125)",

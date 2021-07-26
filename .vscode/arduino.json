@@ -1,6 +1,5 @@
 {
-    "sketch": "locker\\locker.ino",
     "board": "arduino:avr:uno",
     "port": "COM4",
-    "output": "./ArduinoOutput"
+    "sketch": "locker\\locker.ino"
 }
