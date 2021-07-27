@@ -96,9 +96,7 @@ void setup() {
     mfrc.PCD_Init();                  // Init MFRC522
     servo.attach(PIN_SERVO);          // 서보모터 연결
 
-    lockerState = LOCKER_CLOSED;
-
-    moveMotor(lockerState);  // 처음상태 : 잠겨있는 상태
+    moveMotor(lockerState = LOCKER_CLOSED);  // 처음상태 : 잠겨있는 상태
 
     Serial.println("arduino starts");
 }
@@ -108,8 +106,7 @@ void loop() {
     if (lockerState == LOCKER_CLOSED) {  // 금고가 잠겨있을 때
         if (mfrc.PICC_IsNewCardPresent() && mfrc.PICC_ReadCardSerial()) {
             if (isVerified(mfrc.uid.uidByte)) {
-                lockerState = LOCKER_OPENED;
-                moveMotor(lockerState);
+                open();
                 return;
             }
         }
@@ -153,8 +150,7 @@ void loop() {
         // 입력된 숫자가 4자리에 다다랐을 때 비밀번호 대조
         if (keyPressed.length() >= 4) {
             if (keyPressed == registeredPw) {
-                lockerState = LOCKER_OPENED;
-                moveMotor(lockerState);
+                open();
             }
             keyPressed = "";
             Serial.println(keyPressed);
@@ -173,9 +169,8 @@ void loop() {
         // }
         if (!digitalRead(BUTTON_3)) {
             delay(BUTTON_DELAY);
-            lockerState = LOCKER_CLOSED;
-            moveMotor(lockerState);
             keyPressed = "";
+            close();
             return;
         }
         if (bluetooth.available()) {
@@ -220,13 +215,15 @@ void moveMotor(int nextState) {
 void btHandler(String btRead) {
     if (btRead.length() == 4 && btRead == registeredPw &&
         lockerState == LOCKER_CLOSED) {
-        lockerState = LOCKER_OPENED;
-        moveMotor(lockerState);
+        open();
         return;
     }
     if (btRead == "close" && lockerState == LOCKER_OPENED) {
-        lockerState = LOCKER_CLOSED;
-        moveMotor(lockerState);
+        close();
         return;
     }
 }
+
+void open() { moveMotor(lockerState = LOCKER_OPENED); }
+
+void close() { moveMotor(lockerState = LOCKER_CLOSED); }
