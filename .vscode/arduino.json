@@ -1,5 +1,0 @@
-{
-    "board": "arduino:avr:uno",
-    "port": "COM4",
-    "sketch": "locker\\locker.ino"
-}
