@@ -28,7 +28,7 @@
  *
  * A0-  X
  * A1-  X
- * A2-  x
+ * A2-  조도센서
  * A3-  가변저항기
  * A4-  LCD
  * A5-  LCD
@@ -51,6 +51,7 @@
 #define BUTTON_2 5  // 취소버튼
 #define BUTTON_3 6  // ??
 #define BUTTON_4 7  // 문 닫힘 버튼
+#define CDS A2
 
 /*********************************
  * 코드에 사용될 변수들을 선언하는곳 입니다.
@@ -86,13 +87,14 @@ void setup() {
      */
     Serial.begin(9600);
     bluetooth.begin(9600);
-    pinMode(BUTTON_1, INPUT_PULLUP);
-    pinMode(BUTTON_2, INPUT_PULLUP);
-    pinMode(BUTTON_3, INPUT_PULLUP);
-    pinMode(BUTTON_4, INPUT_PULLUP);
-    SPI.begin();      // Init SPI bus(for RFID)
-    mfrc.PCD_Init();  // Init MFRC522
-    servo.attach(PIN_SERVO);
+    pinMode(BUTTON_1, INPUT_PULLUP);  // 멤브레인키보드 #1
+    pinMode(BUTTON_2, INPUT_PULLUP);  // 멤브레인키보드 #2
+    pinMode(BUTTON_3, INPUT_PULLUP);  // 멤브레인키보드 #3
+    pinMode(BUTTON_4, INPUT_PULLUP);  // 멤브레인키보드 #4
+    pinMode(A2, INPUT);               // 조도센서
+    SPI.begin();                      // Init SPI bus(for RFID)
+    mfrc.PCD_Init();                  // Init MFRC522
+    servo.attach(PIN_SERVO);          // 서보모터 연결
 
     lockerState = LOCKER_CLOSED;
 
@@ -110,6 +112,10 @@ void loop() {
                 moveMotor(lockerState);
                 return;
             }
+        }
+        if (bluetooth.available()) {
+            String btRead = bluetooth.readStringUntil('\n');
+            btHandler(btRead);
         }
         /**
          * 키패드에서 값 읽어오기
@@ -160,18 +166,21 @@ void loop() {
      * 열려있는 상태
      */
     if (lockerState == LOCKER_OPENED) {
-        // if () {  // 조도 센서의 값이 일정 이하라면
-        //     lockerState = CLOSED;
+        // if (analogRead(CDS) < 500) {  // 조도 센서의 값이 일정 이하라면
+        //     lockerState = LOCKER_CLOSED;
+        //     moveMotor(lockerState);
         //     return;
         // }
-
-        // dev
         if (!digitalRead(BUTTON_3)) {
             delay(BUTTON_DELAY);
             lockerState = LOCKER_CLOSED;
             moveMotor(lockerState);
             keyPressed = "";
             return;
+        }
+        if (bluetooth.available()) {
+            String btRead = bluetooth.readStringUntil('\n');
+            btHandler(btRead);
         }
     }
 }
@@ -202,5 +211,22 @@ void moveMotor(int nextState) {
         servo.write(0);
     } else {
         servo.write(180);
+    }
+}
+
+/**
+ * 블루투스 통신을 처리하는 함수
+ */
+void btHandler(String btRead) {
+    if (btRead.length() == 4 && btRead == registeredPw &&
+        lockerState == LOCKER_CLOSED) {
+        lockerState = LOCKER_OPENED;
+        moveMotor(lockerState);
+        return;
+    }
+    if (btRead == "close" && lockerState == LOCKER_OPENED) {
+        lockerState = LOCKER_CLOSED;
+        moveMotor(lockerState);
+        return;
     }
 }
