@@ -1,6 +1,7 @@
 /*********************************
  * 실습에 필요한 라이브러리를 불러옵니다.
  * ******************************/
+#include <LiquidCrystal_I2C.h>
 #include <MFRC522.h>
 #include <SPI.h>
 #include <Servo.h>
@@ -28,8 +29,8 @@
  *
  * A0-  X
  * A1-  X
- * A2-  조도센서
- * A3-  가변저항기
+ * A2-  X
+ * A3-  조도센서
  * A4-  LCD
  * A5-  LCD
  * ******************************/
@@ -42,25 +43,25 @@
 #define BT_RXD 8
 /**
     키패드	핀
-    2	    첫번째 핀
-    1	    두번째 핀
-    3	    네번째 핀
-    4	    세번째 핀
+    [2]	    첫번째 핀
+    [1]	    두번째 핀
+    [3]	    네번째 핀
+    [4]	    세번째 핀
  */
-#define BUTTON_1 4  // 확인 버튼
-#define BUTTON_2 5  // 취소버튼
-#define BUTTON_3 6  // ??
-#define BUTTON_4 7  // 문 닫힘 버튼
+#define BUTTON_1 4  
+#define BUTTON_2 5  
+#define BUTTON_3 6  
+#define BUTTON_4 7  
 #define CDS A2
 
 /*********************************
  * 코드에 사용될 변수들을 선언하는곳 입니다.
  *******************************/
 #define BUTTON_DELAY 300  // 버튼에 딜레이를 주어 오입력 방지
-#define LOCKER_CLOSED 0   // 닫힘 상태를 나타내는 상수
-#define LOCKER_OPENED 1   // 열림 상태를 나타내는 상수
 
-int lockerState;  // 시스템의 현재 상태를 나타내는 변수
+enum LcdCommand { OPEN, CLOSE, UPDATE, WRONG };
+enum LockerState{LOCKER_CLOSED, LOCKER_OPENED};
+LockerState lockerState;  // 시스템의 현재 상태를 나타내는 변수. 
 
 /**
  * 이전 실습을 통해 진행하였던 내용을 아래에 추가합니다.
@@ -77,6 +78,7 @@ String keyPressed = "";        // 키패드에 입력된 값을 담는 변수
 Servo servo;
 MFRC522 mfrc(RFID_SS, RFID_RST);  // Instance of the class
 SoftwareSerial bluetooth(BT_TXD, BT_RXD);
+LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 /*********************************
  * setup함수. 1회 실행.
@@ -95,19 +97,23 @@ void setup() {
     SPI.begin();                      // Init SPI bus(for RFID)
     mfrc.PCD_Init();                  // Init MFRC522
     servo.attach(PIN_SERVO);          // 서보모터 연결
+    lcd.init();                       // LCD 초기화
+    lcd.backlight();                  // 백라이트 켜기
+    lcd.setCursor(0, 0);              // 1번째, 1라인
 
-    moveMotor(lockerState = LOCKER_CLOSED);  // 처음상태 : 잠겨있는 상태
-
+    close();
     Serial.println("arduino starts");
 }
 
-// LED 입력값은 점멸 횟수로 표기
 void loop() {
     if (lockerState == LOCKER_CLOSED) {  // 금고가 잠겨있을 때
         if (mfrc.PICC_IsNewCardPresent() && mfrc.PICC_ReadCardSerial()) {
             if (isVerified(mfrc.uid.uidByte)) {
                 open();
                 return;
+            } else {
+                lcdHandler(LcdCommand::WRONG);
+                lcdHandler(LcdCommand::UPDATE);
             }
         }
         if (bluetooth.available()) {
@@ -121,39 +127,39 @@ void loop() {
          * 2. "yes" => 어떤 버튼이 눌렸나? => 해당 눌린 버튼에 대한 동작을
          * switch-case문으로 정의
          */
-        int readValue = 0;
         for (int i = BUTTON_1; i <= BUTTON_4; i++) {
             if (!digitalRead(i)) {
                 delay(BUTTON_DELAY);
-                readValue = i;
+                switch (i) {
+                    case BUTTON_1:
+                        keyPressed += "2";
+                        break;
+                    case BUTTON_2:
+                        keyPressed += "1";
+                        break;
+                    case BUTTON_3:
+                        keyPressed += "4";
+                        break;
+                    case BUTTON_4:
+                        keyPressed += "3";
+                        break;
+                    default:
+                        break;
+                }
+                lcdHandler(LcdCommand::UPDATE);
                 break;
             }
-        }
-        Serial.println(keyPressed);
-        switch (readValue) {
-            case BUTTON_1:
-                keyPressed += "2";
-                break;
-            case BUTTON_2:
-                keyPressed += "1";
-                break;
-            case BUTTON_3:
-                keyPressed += "4";
-                break;
-            case BUTTON_4:
-                keyPressed += "3";
-                break;
-            default:
-                break;
         }
 
         // 입력된 숫자가 4자리에 다다랐을 때 비밀번호 대조
         if (keyPressed.length() >= 4) {
             if (keyPressed == registeredPw) {
                 open();
+            } else {
+                lcdHandler(LcdCommand::WRONG);
             }
             keyPressed = "";
-            Serial.println(keyPressed);
+            lcdHandler(LcdCommand::UPDATE);
             return;
         }
     }
@@ -190,23 +196,10 @@ void loop() {
 bool isVerified(byte uid[]) {
     for (byte i = 0; i < 4; i++) {
         if (registeredCard[i] != uid[i]) {
-            Serial.println("RFID false");
             return false;
         }
     }
-    Serial.println("RFID true");
     return true;
-}
-
-/**
- * 모터의 동작을 담당하는 함수
- */
-void moveMotor(int nextState) {
-    if (nextState == LOCKER_OPENED) {
-        servo.write(0);
-    } else {
-        servo.write(180);
-    }
 }
 
 /**
@@ -224,6 +217,60 @@ void btHandler(String btRead) {
     }
 }
 
-void open() { moveMotor(lockerState = LOCKER_OPENED); }
+/**
+ * lcd를 조작하는 함수
+ */
+void lcdHandler(LcdCommand command) {
+    switch (command) {
+        case OPEN:
+            lcd.clear();            lcd.print("Welcome!");
+            break;
 
-void close() { moveMotor(lockerState = LOCKER_CLOSED); }
+        case CLOSE:
+            lcd.clear();            lcd.print("ENTER PW : ");
+            lcd.setCursor(0, 1);    lcd.print("OR TAG CARD");   break;
+
+        case UPDATE:
+            lcd.setCursor(11, 0);
+            for (int i = 0; i < keyPressed.length(); i++) {
+                lcd.print("*");
+            }
+            break;
+
+        case WRONG:
+            lcd.setCursor(11, 0);   lcd.print("     ");
+            lcd.setCursor(11, 0);   lcd.print("WRONG"); delay(750);
+            lcd.setCursor(11, 0);   lcd.print("     ");
+            break;
+
+        default:
+            break;
+    }
+}
+
+/**
+ * 금고의 잠금을 해제하는 함수
+ */
+void open() {
+    moveMotor(lockerState = LOCKER_OPENED);
+    lcdHandler(LcdCommand::OPEN);
+}
+
+/**
+ * 금고를 잠구는 함수
+ */
+void close() {
+    moveMotor(lockerState = LOCKER_CLOSED);
+    lcdHandler(LcdCommand::CLOSE);
+}
+
+/**
+ * 모터의 동작을 담당하는 함수
+ */
+void moveMotor(int nextState) {
+    if (nextState == LOCKER_OPENED) {
+        servo.write(0);
+    } else {
+        servo.write(180);
+    }
+}
