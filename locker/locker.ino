@@ -1,3 +1,5 @@
+// locker 최종 소스코드
+
 /*********************************
  * 실습에 필요한 라이브러리를 불러옵니다.
  * ******************************/
@@ -27,10 +29,10 @@
  * 12-  RFID-SPI(고정)
  * 13-  RFID-SPI(고정)
  *
- * A0-  X
+ * A0-  조도센서
  * A1-  X
  * A2-  X
- * A3-  조도센서
+ * A3-  
  * A4-  LCD
  * A5-  LCD
  * ******************************/
@@ -52,7 +54,7 @@
 #define BUTTON_2 5  
 #define BUTTON_3 6  
 #define BUTTON_4 7  
-#define CDS A2
+#define CDS A0
 
 /*********************************
  * 코드에 사용될 변수들을 선언하는곳 입니다.
@@ -107,13 +109,14 @@ void setup() {
 
 void loop() {
     if (lockerState == LOCKER_CLOSED) {  // 금고가 잠겨있을 때
+    /* 카드 리더에 카드가 인식 되었다면? */
         if (mfrc.PICC_IsNewCardPresent() && mfrc.PICC_ReadCardSerial()) {
-            if (isVerified(mfrc.uid.uidByte)) {
-                open();
-                return;
+            if (isVerified(mfrc.uid.uidByte)) { // 일련번호가 일치한다면?
+                open();  // 금고 열림
+                return;  // loop()함수 탈출
             } else {
-                lcdHandler(LcdCommand::WRONG);
-                lcdHandler(LcdCommand::UPDATE);
+                lcdHandler(LcdCommand::WRONG);  // 일련번호 불일치. lcd에 메시지 WRONG 메시지 출력
+                lcdHandler(LcdCommand::UPDATE); // WRONG메시지 출력 후 다시 LCD 초기화
             }
         }
         if (bluetooth.available()) {
@@ -164,24 +167,15 @@ void loop() {
         }
     }
 
-    /**
-     * 열려있는 상태
-     */
+    /* 열려있는 상태 */
     if (lockerState == LOCKER_OPENED) {
-        // if (analogRead(CDS) < 500) {  // 조도 센서의 값이 일정 이하라면
-        //     lockerState = LOCKER_CLOSED;
-        //     moveMotor(lockerState);
-        //     return;
-        // }
-        if (!digitalRead(BUTTON_3)) {
-            delay(BUTTON_DELAY);
-            keyPressed = "";
+        if (analogRead(CDS) < 400) {  // 조도 센서의 값이 일정 이하라면
+            for(int i=0; i<3; i++){
+                delay(1000);
+                if(analogRead(CDS) > 400)   return;
+            }
             close();
             return;
-        }
-        if (bluetooth.available()) {
-            String btRead = bluetooth.readStringUntil('\n');
-            btHandler(btRead);
         }
     }
 }
@@ -228,7 +222,8 @@ void lcdHandler(LcdCommand command) {
 
         case CLOSE:
             lcd.clear();            lcd.print("ENTER PW : ");
-            lcd.setCursor(0, 1);    lcd.print("OR TAG CARD");   break;
+            lcd.setCursor(0, 1);    lcd.print("OR TAG CARD");   
+            break;
 
         case UPDATE:
             lcd.setCursor(11, 0);
@@ -252,6 +247,7 @@ void lcdHandler(LcdCommand command) {
  * 금고의 잠금을 해제하는 함수
  */
 void open() {
+    keyPressed = "";
     moveMotor(lockerState = LOCKER_OPENED);
     lcdHandler(LcdCommand::OPEN);
 }
